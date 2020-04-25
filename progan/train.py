@@ -3,9 +3,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
-from datasets import ImageFolderDataset
-from losses import discriminator_criterion, generator_criterion
-from models import Discriminator, Generator
+from progan.datasets import ImageFolderDataset
+from progan.losses import discriminator_criterion, generator_criterion
+from progan.models import Discriminator, Generator
 
 
 def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None):  # paper transitioned every 800k
