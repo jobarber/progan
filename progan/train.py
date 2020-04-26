@@ -8,7 +8,8 @@ from losses import discriminator_criterion, generator_criterion
 from models import Discriminator, Generator
 
 
-def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None):  # paper transitioned every 800k
+def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
+          num_workers=12):                              # paper transitioned every 800k images
 
     if gmodelpath and dmodelpath:
         generator = torch.load('modeldata/' + gmodelpath).cuda()
@@ -35,7 +36,8 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None):  # pape
 
     dataset = ImageFolderDataset(root='modified-downloads', resolution=generator.resolution, length=16_000,
                                  sample_limit=None)
-    dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 2), 1024), shuffle=True, num_workers=10)
+    dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 2), 512), shuffle=True,
+                            num_workers=num_workers)
 
     #  α = 0.001, β1 = 0, β2 = 0.99, and eps = 10−8
     generator_optimizer = optim.Adam(params=generator.parameters(), lr=1e-4, betas=(0., 0.9), eps=1e-8)
@@ -107,8 +109,8 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None):  # pape
 
             print(
                 'Epoch: {}, Seen Images: {}, Resolution: {}, Alpha: {} -- GLoss: {}, DLoss: {}, GRunLoss: {}, DRunLoss: {}'
-                .format(epoch, seen_images, resolution, alpha, generator_loss, discriminator_loss,
-                        g_running_loss / (batch_index + 1), d_running_loss / (batch_index + 1)))
+                    .format(epoch, seen_images, resolution, alpha, generator_loss, discriminator_loss,
+                            g_running_loss / (batch_index + 1), d_running_loss / (batch_index + 1)))
 
             if 0 <= seen_images % 3_000 < dataloader.batch_size:
                 sample = generator(steady_sample, alpha=alpha)
@@ -136,7 +138,7 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None):  # pape
                 dataset = ImageFolderDataset(root='modified-downloads', resolution=resolution, length=16_000,
                                              sample_limit=None)
                 dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 2), 512), shuffle=True,
-                                        num_workers=10)
+                                        num_workers=num_workers)
 
                 generator.increase_resolution()
                 discriminator.increase_resolution()
@@ -144,8 +146,8 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None):  # pape
                 generator = generator.cuda()
                 discriminator = discriminator.cuda()
 
-                generator_optimizer.add_param_group({'params': generator.newest_params, 'lr': 8e-5})
-                discriminator_optimizer.add_param_group({'params': discriminator.newest_params, 'lr': 8e-5})
+                generator_optimizer.add_param_group({'params': generator.newest_params, 'lr': 1e-4})
+                discriminator_optimizer.add_param_group({'params': discriminator.newest_params, 'lr': 1e-4})
 
                 print(generator)
                 print(discriminator)
@@ -155,9 +157,10 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None):  # pape
 
 
 if __name__ == '__main__':
-    train(transition_every=800_000,
+    train(transition_every=1_200_000,
           dmodelpath=None,
-          gmodelpath=None)
+          gmodelpath=None,
+          num_workers=10)
     # g = train(transition_every=1_200_000,
     #           dmodelpath='dmodel4_0.3178253769874573.pt',
     #           gmodelpath='gmodel4_0.3178253769874573.pt')
