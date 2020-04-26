@@ -4,7 +4,7 @@ from torchvision import transforms
 
 class ImageFolderDataset(ImageFolder):
 
-    def __init__(self, root='downloads', resolution=4, length=None, sample_limit=None, **kwargs):
+    def __init__(self, root='modified-downloads', resolution=4, length=None, sample_limit=None, **kwargs):
 
         """
         Constructor.
@@ -27,10 +27,10 @@ class ImageFolderDataset(ImageFolder):
         self.length = length
         transform = transforms.Compose([
             transforms.Resize(size=(resolution, resolution)),
-            transforms.ColorJitter(brightness=.03, contrast=0., saturation=0., hue=0.),
+            # transforms.ColorJitter(brightness=0., contrast=0., saturation=0., hue=.1 / 256),
             transforms.RandomHorizontalFlip(p=0.4),
-            transforms.RandomPerspective(distortion_scale=0.01,
-                                         p=0.01),
+            transforms.RandomPerspective(distortion_scale=0.005,
+                                         p=0.05),
             transforms.RandomRotation(1),
             transforms.ToTensor()
         ])

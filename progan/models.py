@@ -256,11 +256,10 @@ class Generator(nn.Module):
         to_rgb = False
         for i, module in enumerate(self.modules_):
             if alpha < 1. and len(self.modules_) > 1 and (i == len(self.modules_) - 1):
-                old_x = x * (1 - alpha)
-                old_x = self.prior_to_rgb(old_x)
-                old_x = module.upscale(old_x)
-                new_x = module(x) * alpha
-                new_x = self.to_rgb(new_x)
+                old_x = self.prior_to_rgb(x)
+                old_x = module.upscale(old_x) * (1 - alpha)
+                new_x = module(x)
+                new_x = self.to_rgb(new_x) * alpha
                 x = new_x + old_x
                 to_rgb = True
             else:
