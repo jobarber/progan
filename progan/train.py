@@ -1,5 +1,8 @@
+import os
+
 import torch
 import torch.optim as optim
+from datetime import datetime
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
@@ -9,7 +12,7 @@ from models import Discriminator, Generator
 
 
 def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
-          num_workers=12):                              # paper transitioned every 800k images
+          num_workers=12):  # paper transitioned every 800k
 
     if gmodelpath and dmodelpath:
         generator = torch.load('modeldata/' + gmodelpath).cuda()
@@ -34,7 +37,7 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
 
     max_alpha = torch.tensor(1.).cuda()
 
-    dataset = ImageFolderDataset(root='modified-downloads', resolution=generator.resolution, length=16_000,
+    dataset = ImageFolderDataset(root='CelebA-HQ-img', resolution=generator.resolution, length=16_000,
                                  sample_limit=None)
     dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 2), 512), shuffle=True,
                             num_workers=num_workers)
@@ -42,10 +45,10 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
     #  α = 0.001, β1 = 0, β2 = 0.99, and eps = 10−8
     generator_optimizer = optim.Adam(params=generator.parameters(), lr=1e-4, betas=(0., 0.9), eps=1e-8)
     # generator_optimizer = optim.RMSprop(params=generator.parameters(), lr=10e-5)
-    discriminator_optimizer = optim.Adam(params=discriminator.parameters(), lr=1e-4, betas=(0., 0.9), eps=1e-8, )
+    discriminator_optimizer = optim.Adam(params=discriminator.parameters(), lr=1e-4, betas=(0., 0.9), eps=1e-8)
     # discriminator_optimizer = optim.RMSprop(params=discriminator.parameters(), lr=10e-5)
 
-    steady_sample = torch.randn(16, 512).cuda()
+    steady_sample = torch.randn(128, 512).cuda()
 
     for epoch in range(30_000):
 
@@ -112,30 +115,37 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
                     .format(epoch, seen_images, resolution, alpha, generator_loss, discriminator_loss,
                             g_running_loss / (batch_index + 1), d_running_loss / (batch_index + 1)))
 
-            if 0 <= seen_images % 3_000 < dataloader.batch_size:
+            if 0 <= seen_images % 20_000 < dataloader.batch_size:
                 sample = generator(steady_sample, alpha=alpha)
-                res_nums = {1024: 2, 512: 2, 256: 4, 128: 6, 64: 8, 32: 12, 16: 12, 8: 16, 4: 16}
-                res_rows = {1024: 2, 512: 2, 256: 4, 128: 6, 64: 2, 32: 3, 16: 4, 8: 4, 4: 4}
-                sample = torch.cat([sample[:res_nums.get(resolution, 2) // 2], X[:16]], dim=0)[
-                         :res_nums.get(resolution, 2)]
-                save_image(sample, 'inferences/inference{}_{}.png'.format(epoch, seen_images),
+                res_nums = {1024: 2, 512: 4, 256: 8, 128: 8, 64: 16, 32: 32, 16: 64, 8: 64, 4: 128}
+                res_rows = {1024: 2, 512: 2, 256: 4, 128: 4, 64: 4, 32: 8, 16: 8, 8: 8, 4: 16}
+                sample = torch.cat([sample[:res_nums.get(resolution, 2) // 2], X[:res_nums.get(resolution, 2) // 2]],
+                                   dim=0)[:res_nums.get(resolution, 2)]
+                inference_dirname = 'inferences_' + str(datetime.today()).split()[0]
+                if not os.path.exists(inference_dirname):
+                    os.mkdir(inference_dirname)
+                save_image(sample, inference_dirname + '/inference{}_{}.png'.format(epoch, seen_images),
                            nrow=res_rows.get(resolution, 2))
                 # print('real sample =>', sample[-1])
                 print('fake sample =>', sample[0])
+
+            if 0 < seen_images % 100_000 < dataloader.batch_size:
+                torch.save(generator, 'modeldata/gmodel{}_{}.pt'.format(resolution, g_running_loss))
+                torch.save(discriminator, 'modeldata/dmodel{}_{}.pt'.format(resolution, g_running_loss))
 
             # transition every other
             if (seen_images > transition_every // 2 and
                     0 <= seen_images % (transition_every * 2) - transition_every < dataloader.batch_size):
 
                 torch.save(generator, 'modeldata/gmodel{}_{}.pt'.format(resolution, g_running_loss))
-                torch.save(discriminator, 'modeldata/dmodel{}_{}.pt'.format(resolution, g_running_loss))
+                torch.save(discriminator, 'modeldata/dmodel{}_{}.pt'.format(resolution, d_running_loss))
 
                 if resolution == 1024:
                     continue
 
                 resolution *= 2
                 print('increasing resolution to', resolution)
-                dataset = ImageFolderDataset(root='modified-downloads', resolution=resolution, length=16_000,
+                dataset = ImageFolderDataset(root='CelebA-HQ-img', resolution=resolution, length=16_000,
                                              sample_limit=None)
                 dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 2), 512), shuffle=True,
                                         num_workers=num_workers)
@@ -146,18 +156,18 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
                 generator = generator.cuda()
                 discriminator = discriminator.cuda()
 
-                generator_optimizer.add_param_group({'params': generator.newest_params, 'lr': 1e-4})
-                discriminator_optimizer.add_param_group({'params': discriminator.newest_params, 'lr': 1e-4})
+                generator_optimizer.add_param_group({'params': generator.newest_params, 'lr': 1e-5})
+                discriminator_optimizer.add_param_group({'params': discriminator.newest_params, 'lr': 1e-5})
 
-                print(generator)
-                print(discriminator)
+                print(generator, '\n')
+                print(discriminator, '\n')
 
                 alpha = torch.tensor(0.).cuda()
                 break  # cannot continue with current set of lower res batches from dataloader
 
 
 if __name__ == '__main__':
-    train(transition_every=1_200_000,
+    train(transition_every=850_000,
           dmodelpath=None,
           gmodelpath=None,
           num_workers=10)
