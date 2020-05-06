@@ -39,13 +39,13 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
 
     dataset = ImageFolderDataset(root='CelebA-HQ-img', resolution=generator.resolution, length=16_000,
                                  sample_limit=None)
-    dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 2), 512), shuffle=True,
+    dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 4), 512), shuffle=True,
                             num_workers=num_workers)
 
     #  α = 0.001, β1 = 0, β2 = 0.99, and eps = 10−8
-    generator_optimizer = optim.Adam(params=generator.parameters(), lr=1e-4, betas=(0., 0.9), eps=1e-8)
+    generator_optimizer = optim.Adam(params=generator.parameters(), lr=1e-3, betas=(0., 0.9), eps=1e-8)
     # generator_optimizer = optim.RMSprop(params=generator.parameters(), lr=10e-5)
-    discriminator_optimizer = optim.Adam(params=discriminator.parameters(), lr=1e-4, betas=(0., 0.9), eps=1e-8)
+    discriminator_optimizer = optim.Adam(params=discriminator.parameters(), lr=1e-3, betas=(0., 0.9), eps=1e-8)
     # discriminator_optimizer = optim.RMSprop(params=discriminator.parameters(), lr=10e-5)
 
     steady_sample = torch.randn(128, 512).cuda()
@@ -71,7 +71,7 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
             for param in discriminator.parameters():
                 param.requires_grad = True
 
-            for _ in range(2):
+            for _ in range(1):
                 discriminator_optimizer.zero_grad()
 
                 discriminator_loss = discriminator_criterion(generator, discriminator, X, alpha=alpha)
@@ -116,7 +116,8 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
                             g_running_loss / (batch_index + 1), d_running_loss / (batch_index + 1)))
 
             if 0 <= seen_images % 20_000 < dataloader.batch_size:
-                sample = generator(steady_sample, alpha=alpha)
+                with torch.no_grad():
+                    sample = generator(steady_sample, alpha=alpha)
                 res_nums = {1024: 2, 512: 4, 256: 8, 128: 8, 64: 16, 32: 32, 16: 64, 8: 64, 4: 128}
                 res_rows = {1024: 2, 512: 2, 256: 4, 128: 4, 64: 4, 32: 8, 16: 8, 8: 8, 4: 16}
                 sample = torch.cat([sample[:res_nums.get(resolution, 2) // 2], X[:res_nums.get(resolution, 2) // 2]],
@@ -147,7 +148,7 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
                 print('increasing resolution to', resolution)
                 dataset = ImageFolderDataset(root='CelebA-HQ-img', resolution=resolution, length=16_000,
                                              sample_limit=None)
-                dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 2), 512), shuffle=True,
+                dataloader = DataLoader(dataset, batch_size=min(8192 // (resolution * 4), 512), shuffle=True,
                                         num_workers=num_workers)
 
                 generator.increase_resolution()
@@ -156,8 +157,14 @@ def train(transition_every=1_300_000, dmodelpath=None, gmodelpath=None,
                 generator = generator.cuda()
                 discriminator = discriminator.cuda()
 
-                generator_optimizer.add_param_group({'params': generator.newest_params, 'lr': 1e-5})
-                discriminator_optimizer.add_param_group({'params': discriminator.newest_params, 'lr': 1e-5})
+                # generator_optimizer.add_param_group({'params': generator.newest_params, 'lr': 1e-3,
+                #                                      'betas': (0., 0.9), 'eps': 1e-8})
+                # discriminator_optimizer.add_param_group({'params': discriminator.newest_params, 'lr': 1e-3,
+                #                                          'betas': (0., 0.9), 'eps': 1e-8})
+
+                generator_optimizer = optim.Adam(params=generator.parameters(), lr=1e-3, betas=(0., 0.9), eps=1e-8)
+                discriminator_optimizer = optim.Adam(params=discriminator.parameters(), lr=1e-3, betas=(0., 0.9),
+                                                     eps=1e-8)
 
                 print(generator, '\n')
                 print(discriminator, '\n')
