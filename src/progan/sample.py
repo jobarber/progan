@@ -52,10 +52,10 @@ def interpolation_gif(
     stage: int,
     out: Path,
     device: str,
-    n_rows: int = 2,
+    n_rows: int = 1,
     n_cols: int = 4,
     keyframes: int = 5,
-    steps: int = 24,
+    steps: int = 16,
     seed: int = 7,
 ) -> Path:
     """Loop through `keyframes` random latents with spherical interpolation."""
@@ -72,7 +72,7 @@ def interpolation_gif(
             grid = make_grid(imgs, nrow=n_cols, padding=2, pad_value=1.0)
             frames.append((grid.permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8))
     out.parent.mkdir(parents=True, exist_ok=True)
-    iio.imwrite(out, frames, duration=40, loop=0)
+    iio.imwrite(out, frames, duration=60, loop=0)
     return out
 
 
