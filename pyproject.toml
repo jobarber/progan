@@ -1,0 +1,66 @@
+[project]
+name = "progan"
+version = "1.0.0"
+description = "Progressive growing of GANs (Karras et al., 2018) in modern PyTorch"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Justin Barber" }]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pillow>=10.0",
+    "tqdm>=4.66",
+    "tyro>=0.8",
+]
+
+[project.optional-dependencies]
+# Pick exactly one torch build: `uv sync --extra cpu` or `uv sync --extra cu128`.
+cpu = ["torch>=2.5", "torchvision>=0.20"]
+cu128 = ["torch>=2.5", "torchvision>=0.20"]
+data = ["datasets>=3.0"]
+eval = ["torchmetrics[image]>=1.4", "matplotlib>=3.8", "imageio>=2.34"]
+
+[project.scripts]
+progan = "progan.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.7"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu128" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cu128" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu128", extra = "cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+# F, G, D follow PyTorch and GAN-paper naming.
+ignore = ["N803", "N806", "N812"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -133,3 +133,10 @@ inferences/
 
 # Model data directory
 modeldata/
+data/
+runs/
+*.npy
+*.pt
+.venv/
+runs_*.log
+after_essays.sh
